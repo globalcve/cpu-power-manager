@@ -1,0 +1,14 @@
+Source: cpu-power-manager
+Section: utils
+Priority: optional
+Maintainer: JEGLY <globalcve@gmail.com>
+Build-Depends: debhelper (>= 11), cargo, rustc, libgtk-4-dev, libadwaita-1-dev, libglib2.0-dev, pkg-config
+Standards-Version: 4.5.0
+Homepage: https://github.com/globalcve/cpu-power-manager
+
+Package: cpu-power-manager
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libgtk-4-1, libadwaita-1-0, policykit-1
+Description: Advanced CPU frequency and power management tool
+ CPU Power Manager is a comprehensive tool for managing CPU frequencies,
+ governors, and power states on Linux systems.

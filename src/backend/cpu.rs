@@ -1,0 +1,517 @@
+use anyhow::{Context, Result};
+use std::fs;
+use std::path::{Path, PathBuf};
+use serde::{Deserialize, Serialize};
+
+const CPUFREQ_BASE: &str = "/sys/devices/system/cpu";
+const INTEL_PSTATE_PATH: &str = "/sys/devices/system/cpu/intel_pstate";
+const AMD_PSTATE_PATH: &str = "/sys/devices/system/cpu/amd_pstate";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CpuInfo {
+    pub model: String,
+    pub vendor: String,
+    pub core_count: usize,
+    pub driver: CpuDriver,
+    pub min_freq: u32,
+    pub max_freq: u32,
+    pub available_governors: Vec<String>,
+    pub scaling_available_frequencies: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CpuDriver {
+    IntelPstate,
+    AmdPstate,
+    AcpiCpufreq,
+    Unknown,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CoreStatus {
+    pub core_id: usize,
+    pub current_freq: u32,
+    pub min_freq: u32,
+    pub max_freq: u32,
+    pub governor: String,
+    pub online: bool,
+    pub usage_percent: f32,
+}
+
+pub struct CpuManager {
+    core_count: usize,
+    driver: CpuDriver,
+    base_path: PathBuf,
+}
+
+impl CpuManager {
+    pub fn new() -> Result<Self> {
+        let core_count = Self::detect_core_count()?;
+        let driver = Self::detect_driver();
+        
+        log::info!("Detected {} CPU cores with {:?} driver", core_count, driver);
+        
+        Ok(Self {
+            core_count,
+            driver,
+            base_path: PathBuf::from(CPUFREQ_BASE),
+        })
+    }
+
+    fn detect_core_count() -> Result<usize> {
+        let entries = fs::read_dir(CPUFREQ_BASE)
+            .context("Failed to read CPU directory")?;
+        
+        let count = entries
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.file_name()
+                    .to_string_lossy()
+                    .starts_with("cpu")
+                    && e.file_name()
+                        .to_string_lossy()
+                        .chars()
+                        .skip(3)
+                        .all(|c| c.is_numeric())
+            })
+            .count();
+        
+        Ok(count)
+    }
+
+    fn detect_driver() -> CpuDriver {
+        if Path::new(INTEL_PSTATE_PATH).exists() {
+            CpuDriver::IntelPstate
+        } else if Path::new(AMD_PSTATE_PATH).exists() {
+            CpuDriver::AmdPstate
+        } else {
+            // Check for acpi-cpufreq by looking at scaling_driver
+            if let Ok(driver) = fs::read_to_string(format!("{}/cpu0/cpufreq/scaling_driver", CPUFREQ_BASE)) {
+                if driver.trim() == "acpi-cpufreq" {
+                    return CpuDriver::AcpiCpufreq;
+                }
+            }
+            CpuDriver::Unknown
+        }
+    }
+
+    pub fn get_cpu_info(&self) -> Result<CpuInfo> {
+        let model = self.read_cpu_model()?;
+        let vendor = self.read_cpu_vendor()?;
+        let min_freq = self.get_hardware_min_freq(0)?;
+        let max_freq = self.get_hardware_max_freq(0)?;
+        let available_governors = self.get_available_governors(0)?;
+        let scaling_available_frequencies = self.get_available_frequencies(0).unwrap_or_default();
+
+        Ok(CpuInfo {
+            model,
+            vendor,
+            core_count: self.core_count,
+            driver: self.driver,
+            min_freq,
+            max_freq,
+            available_governors,
+            scaling_available_frequencies,
+        })
+    }
+
+    fn read_cpu_model(&self) -> Result<String> {
+        let cpuinfo = fs::read_to_string("/proc/cpuinfo")
+            .context("Failed to read /proc/cpuinfo")?;
+        
+        for line in cpuinfo.lines() {
+            if line.starts_with("model name") {
+                if let Some(model) = line.split(':').nth(1) {
+                    return Ok(model.trim().to_string());
+                }
+            }
+        }
+        
+        Ok("Unknown".to_string())
+    }
+
+    fn read_cpu_vendor(&self) -> Result<String> {
+        let cpuinfo = fs::read_to_string("/proc/cpuinfo")
+            .context("Failed to read /proc/cpuinfo")?;
+        
+        for line in cpuinfo.lines() {
+            if line.starts_with("vendor_id") {
+                if let Some(vendor) = line.split(':').nth(1) {
+                    return Ok(vendor.trim().to_string());
+                }
+            }
+        }
+        
+        Ok("Unknown".to_string())
+    }
+
+    pub fn get_core_status(&self, core: usize) -> Result<CoreStatus> {
+        if core >= self.core_count {
+            anyhow::bail!("Core {} does not exist", core);
+        }
+
+        let current_freq = self.get_frequency(core)?;
+        let min_freq = self.get_scaling_min_freq(core)?;
+        let max_freq = self.get_scaling_max_freq(core)?;
+        let governor = self.get_governor(core)?;
+        let online = self.is_core_online(core)?;
+        let usage_percent = self.get_core_usage(core)?;
+
+        Ok(CoreStatus {
+            core_id: core,
+            current_freq,
+            min_freq,
+            max_freq,
+            governor,
+            online,
+            usage_percent,
+        })
+    }
+
+    pub fn get_all_core_status(&self) -> Result<Vec<CoreStatus>> {
+        (0..self.core_count)
+            .map(|core| self.get_core_status(core))
+            .collect()
+    }
+
+    // Frequency control
+    pub fn get_frequency(&self, core: usize) -> Result<u32> {
+        let path = format!("{}/cpu{}/cpufreq/scaling_cur_freq", CPUFREQ_BASE, core);
+        let freq_khz: u32 = fs::read_to_string(&path)
+            .with_context(|| format!("Failed to read frequency for core {}", core))?
+            .trim()
+            .parse()
+            .context("Failed to parse frequency")?;
+        Ok(freq_khz / 1000) // Convert to MHz
+    }
+
+    pub fn get_all_frequencies(&self) -> Result<Vec<u32>> {
+        (0..self.core_count)
+            .map(|core| self.get_frequency(core))
+            .collect()
+    }
+
+    pub fn set_frequency(&self, core: usize, freq_mhz: u32) -> Result<()> {
+        self.check_write_permission()?;
+        
+        let freq_khz = freq_mhz * 1000;
+        let path = format!("{}/cpu{}/cpufreq/scaling_setspeed", CPUFREQ_BASE, core);
+        
+        fs::write(&path, freq_khz.to_string())
+            .with_context(|| format!("Failed to set frequency for core {}. Make sure you have root privileges.", core))?;
+        
+        log::info!("Set core {} frequency to {} MHz", core, freq_mhz);
+        Ok(())
+    }
+
+    pub fn set_frequency_all(&self, freq_mhz: u32) -> Result<()> {
+        for core in 0..self.core_count {
+            self.set_frequency(core, freq_mhz)?;
+        }
+        Ok(())
+    }
+
+    // Scaling limits
+    pub fn get_scaling_min_freq(&self, core: usize) -> Result<u32> {
+        let path = format!("{}/cpu{}/cpufreq/scaling_min_freq", CPUFREQ_BASE, core);
+        let freq_khz: u32 = fs::read_to_string(&path)
+            .context("Failed to read min frequency")?
+            .trim()
+            .parse()?;
+        Ok(freq_khz / 1000)
+    }
+
+    pub fn get_scaling_max_freq(&self, core: usize) -> Result<u32> {
+        let path = format!("{}/cpu{}/cpufreq/scaling_max_freq", CPUFREQ_BASE, core);
+        let freq_khz: u32 = fs::read_to_string(&path)
+            .context("Failed to read max frequency")?
+            .trim()
+            .parse()?;
+        Ok(freq_khz / 1000)
+    }
+
+    pub fn set_scaling_min_freq(&self, core: usize, freq_mhz: u32) -> Result<()> {
+        self.check_write_permission()?;
+        
+        let freq_khz = freq_mhz * 1000;
+        let path = format!("{}/cpu{}/cpufreq/scaling_min_freq", CPUFREQ_BASE, core);
+        
+        fs::write(&path, freq_khz.to_string())
+            .with_context(|| format!("Failed to set min frequency for core {}. Run with sudo or enable PolicyKit.", core))?;
+        
+        log::info!("Set core {} min frequency to {} MHz", core, freq_mhz);
+        Ok(())
+    }
+
+    pub fn set_scaling_max_freq(&self, core: usize, freq_mhz: u32) -> Result<()> {
+        self.check_write_permission()?;
+        
+        let freq_khz = freq_mhz * 1000;
+        let path = format!("{}/cpu{}/cpufreq/scaling_max_freq", CPUFREQ_BASE, core);
+        
+        fs::write(&path, freq_khz.to_string())
+            .with_context(|| format!("Failed to set max frequency for core {}. Run with sudo or enable PolicyKit.", core))?;
+        
+        log::info!("Set core {} max frequency to {} MHz", core, freq_mhz);
+        Ok(())
+    }
+
+    pub fn set_scaling_limits_all(&self, min_mhz: u32, max_mhz: u32) -> Result<()> {
+        for core in 0..self.core_count {
+            self.set_scaling_min_freq(core, min_mhz)?;
+            self.set_scaling_max_freq(core, max_mhz)?;
+        }
+        Ok(())
+    }
+
+    // Hardware limits
+    pub fn get_hardware_min_freq(&self, core: usize) -> Result<u32> {
+        let path = format!("{}/cpu{}/cpufreq/cpuinfo_min_freq", CPUFREQ_BASE, core);
+        let freq_khz: u32 = fs::read_to_string(&path)
+            .context("Failed to read hardware min frequency")?
+            .trim()
+            .parse()?;
+        Ok(freq_khz / 1000)
+    }
+
+    pub fn get_hardware_max_freq(&self, core: usize) -> Result<u32> {
+        let path = format!("{}/cpu{}/cpufreq/cpuinfo_max_freq", CPUFREQ_BASE, core);
+        let freq_khz: u32 = fs::read_to_string(&path)
+            .context("Failed to read hardware max frequency")?
+            .trim()
+            .parse()?;
+        Ok(freq_khz / 1000)
+    }
+
+    // Governor control
+    pub fn get_governor(&self, core: usize) -> Result<String> {
+        let path = format!("{}/cpu{}/cpufreq/scaling_governor", CPUFREQ_BASE, core);
+        Ok(fs::read_to_string(&path)
+            .context("Failed to read governor")?
+            .trim()
+            .to_string())
+    }
+
+    pub fn get_all_governors(&self) -> Result<Vec<String>> {
+        (0..self.core_count)
+            .map(|core| self.get_governor(core))
+            .collect()
+    }
+
+    pub fn set_governor(&self, core: usize, governor: &str) -> Result<()> {
+        self.check_write_permission()?;
+        
+        // Validate governor
+        let available = self.get_available_governors(core)?;
+        if !available.contains(&governor.to_string()) {
+            anyhow::bail!("Governor '{}' is not available. Available: {:?}", governor, available);
+        }
+        
+        let path = format!("{}/cpu{}/cpufreq/scaling_governor", CPUFREQ_BASE, core);
+        fs::write(&path, governor)
+            .with_context(|| format!("Failed to set governor for core {}. Run with sudo or enable PolicyKit.", core))?;
+        
+        log::info!("Set core {} governor to {}", core, governor);
+        Ok(())
+    }
+
+    pub fn set_governor_all(&self, governor: &str) -> Result<()> {
+        for core in 0..self.core_count {
+            self.set_governor(core, governor)?;
+        }
+        Ok(())
+    }
+
+    pub fn get_available_governors(&self, core: usize) -> Result<Vec<String>> {
+        let path = format!("{}/cpu{}/cpufreq/scaling_available_governors", CPUFREQ_BASE, core);
+        let governors_str = fs::read_to_string(&path)
+            .context("Failed to read available governors")?;
+        
+        Ok(governors_str
+            .split_whitespace()
+            .map(|s| s.to_string())
+            .collect())
+    }
+
+    // Available frequencies
+    pub fn get_available_frequencies(&self, core: usize) -> Result<Vec<u32>> {
+        let path = format!("{}/cpu{}/cpufreq/scaling_available_frequencies", CPUFREQ_BASE, core);
+        
+        if !Path::new(&path).exists() {
+            return Ok(vec![]); // Not all drivers provide this
+        }
+        
+        let freqs_str = fs::read_to_string(&path)
+            .context("Failed to read available frequencies")?;
+        
+        Ok(freqs_str
+            .split_whitespace()
+            .filter_map(|s| s.parse::<u32>().ok())
+            .map(|f| f / 1000) // Convert to MHz
+            .collect())
+    }
+
+    // Turbo boost control
+    pub fn is_turbo_enabled(&self) -> Result<bool> {
+        match self.driver {
+            CpuDriver::IntelPstate => {
+                let path = format!("{}/no_turbo", INTEL_PSTATE_PATH);
+                let no_turbo: u8 = fs::read_to_string(&path)
+                    .context("Failed to read turbo state")?
+                    .trim()
+                    .parse()?;
+                Ok(no_turbo == 0)
+            }
+            CpuDriver::AcpiCpufreq => {
+                let path = "/sys/devices/system/cpu/cpufreq/boost";
+                if Path::new(path).exists() {
+                    let boost: u8 = fs::read_to_string(path)
+                        .context("Failed to read boost state")?
+                        .trim()
+                        .parse()?;
+                    Ok(boost == 1)
+                } else {
+                    Ok(false) // Assume disabled if not available
+                }
+            }
+            _ => Ok(false),
+        }
+    }
+
+    pub fn set_turbo(&self, enable: bool) -> Result<()> {
+        self.check_write_permission()?;
+        
+        match self.driver {
+            CpuDriver::IntelPstate => {
+                let path = format!("{}/no_turbo", INTEL_PSTATE_PATH);
+                let value = if enable { "0" } else { "1" };
+                fs::write(&path, value)
+                    .context("Failed to set turbo state. Run with sudo or enable PolicyKit.")?;
+            }
+            CpuDriver::AcpiCpufreq => {
+                let path = "/sys/devices/system/cpu/cpufreq/boost";
+                if Path::new(path).exists() {
+                    let value = if enable { "1" } else { "0" };
+                    fs::write(path, value)
+                        .context("Failed to set boost state")?;
+                } else {
+                    anyhow::bail!("Turbo boost control not available");
+                }
+            }
+            _ => anyhow::bail!("Turbo control not supported for this driver"),
+        }
+        
+        log::info!("Turbo boost {}", if enable { "enabled" } else { "disabled" });
+        Ok(())
+    }
+
+    // EPP (Energy Performance Preference) for Intel Pstate
+    pub fn set_epp(&self, epp: &str) -> Result<()> {
+        if self.driver != CpuDriver::IntelPstate {
+            anyhow::bail!("EPP only supported on Intel Pstate driver");
+        }
+
+        self.check_write_permission()?;
+
+        for core in 0..self.core_count {
+            let path = format!("{}/cpu{}/cpufreq/energy_performance_preference", CPUFREQ_BASE, core);
+            if Path::new(&path).exists() {
+                fs::write(&path, epp)
+                    .with_context(|| format!("Failed to set EPP for core {}", core))?;
+            }
+        }
+
+        log::info!("Set EPP to {}", epp);
+        Ok(())
+    }
+
+    pub fn get_epp(&self, core: usize) -> Result<String> {
+        let path = format!("{}/cpu{}/cpufreq/energy_performance_preference", CPUFREQ_BASE, core);
+        if Path::new(&path).exists() {
+            Ok(fs::read_to_string(&path)?.trim().to_string())
+        } else {
+            anyhow::bail!("EPP not supported")
+        }
+    }
+
+    // Core online/offline
+    pub fn is_core_online(&self, core: usize) -> Result<bool> {
+        if core == 0 {
+            return Ok(true); // Core 0 is always online
+        }
+        
+        let path = format!("{}/cpu{}/online", CPUFREQ_BASE, core);
+        if !Path::new(&path).exists() {
+            return Ok(true); // If the file doesn't exist, assume online
+        }
+        
+        let online: u8 = fs::read_to_string(&path)
+            .context("Failed to read core online state")?
+            .trim()
+            .parse()?;
+        Ok(online == 1)
+    }
+
+    pub fn set_core_online(&self, core: usize, online: bool) -> Result<()> {
+        if core == 0 {
+            anyhow::bail!("Cannot offline core 0");
+        }
+        
+        self.check_write_permission()?;
+        
+        let path = format!("{}/cpu{}/online", CPUFREQ_BASE, core);
+        let value = if online { "1" } else { "0" };
+        
+        fs::write(&path, value)
+            .with_context(|| format!("Failed to set core {} online state", core))?;
+        
+        log::info!("Core {} set to {}", core, if online { "online" } else { "offline" });
+        Ok(())
+    }
+
+    // Core usage
+    fn get_core_usage(&self, _core: usize) -> Result<f32> {
+        // This is a simplified version - real implementation would use procfs
+        // to calculate CPU usage over a time period
+        Ok(0.0)
+    }
+
+    // Permission check helper
+    fn check_write_permission(&self) -> Result<()> {
+        if !nix::unistd::Uid::effective().is_root() {
+            anyhow::bail!(
+                "Root privileges required. Please run with 'sudo' or configure PolicyKit:\n\
+                 sudo cpu-power-manager\n\
+                 \n\
+                 Or install PolicyKit policy:\n\
+                 sudo cp assets/com.cpupowermanager.policy /usr/share/polkit-1/actions/"
+            );
+        }
+        Ok(())
+    }
+
+    pub fn core_count(&self) -> usize {
+        self.core_count
+    }
+
+    pub fn driver(&self) -> CpuDriver {
+        self.driver
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_cpu_manager_creation() {
+        let manager = CpuManager::new();
+        assert!(manager.is_ok());
+    }
+
+    #[test]
+    fn test_core_count() {
+        let manager = CpuManager::new().unwrap();
+        assert!(manager.core_count() > 0);
+    }
+}
