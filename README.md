@@ -2,8 +2,13 @@
 
 > Advanced CPU frequency and power management tool for Linux with GTK4 interface and Dracula theme
 
-![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
+[![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux-lightgrey.svg)]()
+[![Rust](https://img.shields.io/badge/language-Rust-orange.svg)]()
+[![Shell](https://img.shields.io/badge/language-Shell-green.svg)]()
+[![CSS](https://img.shields.io/badge/language-CSS-blue.svg)]()
+
+
 
 ## Features
 
