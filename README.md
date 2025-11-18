@@ -107,7 +107,7 @@ sudo pacman -S base-devel rust gtk4 libadwaita pkgconf polkit
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/cpu-power-manager.git
+git clone https://github.com/globalcve/cpu-power-manager.git
 cd cpu-power-manager
 
 # Build release version
