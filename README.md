@@ -51,10 +51,7 @@
 - 🛡️ Configuration validation
 - 🛡️ Backup/restore functionality
 
-## Screenshots
 
-![Dashboard](screenshots/dashboard.png)
-![Profile Selection](screenshots/profiles.png)
 
 ## System Requirements
 
@@ -75,11 +72,10 @@
 
 ```bash
 # Download the latest release
-wget https://github.com/globalcve/cpu-power-manager/releases/latest/download/cpu-power-manager_1.0.0_amd64.deb
+wget https://github.com/globalcve/cpu-power-manager/releases/download/1.0.0-1/cpu-power-manager_1.0.0-1_amd64.deb
+sudo dpkg -i cpu-power-manager_1.0.0-1_amd64.deb
+sudo apt-get install -f
 
-# Install
-sudo dpkg -i cpu-power-manager_1.0.0_amd64.deb
-sudo apt-get install -f  # Install dependencies if needed
 ```
 
 ### From Source
