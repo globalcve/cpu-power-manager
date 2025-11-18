@@ -280,7 +280,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/globalcve/cpu-power-manager/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/globalcve/cpu-power-manager/discussions)
+
 
 ## Roadmap
 
@@ -297,12 +297,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 **Note**: This tool requires root privileges to change CPU frequencies. Please use with caution and understand the implications of manually controlling CPU frequencies.
 
-### Build Requirements
 
-- Rust **nightly** toolchain (edition 2024 support required)
-  ```bash
-  rustup install nightly
-  rustup override set nightly
 
 
 
