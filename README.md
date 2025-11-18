@@ -1,6 +1,6 @@
 # CPU Power Manager in BETA !
 
-> Advanced CPU frequency and power management tool for Linux with GTK4 interface and Dracula theme
+> Advanced CPU frequency and power management tool for Linux with GTK4 interface / Rust Backend
 
 [![License: GPL v3](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
 [![Platform: Linux](https://img.shields.io/badge/platform-Linux-lightgrey.svg)]()
