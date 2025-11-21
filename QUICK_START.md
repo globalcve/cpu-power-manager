@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-## Installation
+## Installation ( still in beta )
 
 ### Option 1: Install from Release `.deb` (Recommended for Debian/Ubuntu)
 Download the latest `.deb` from [Releases](https://github.com/globalcve/cpu-power-manager/releases):
