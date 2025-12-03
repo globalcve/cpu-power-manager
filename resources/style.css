@@ -1,25 +1,22 @@
-
 :root {
-  --dracula-background: #282a36;
-  --dracula-current-line: #44475a;
-  --dracula-selection: #44475a;
-  --dracula-foreground: #f8f8f2;
-  --dracula-comment: #6272a4;
-  --dracula-cyan: #8be9fd;
-  --dracula-green: #50fa7b;
-  --dracula-orange: #ffb86c;
-  --dracula-pink: #ff79c6;
-  --dracula-purple: #bd93f9;
-  --dracula-red: #ff5555;
-  --dracula-yellow: #f1fa8c;
+  --dark-background: #1e1e1e;
+  --dark-surface: #2a2a2a;
+  --dark-overlay: #333333;
+  --dark-text: #f0f0f0;
+  --dark-subtext: #aaaaaa;
+  --dark-accent-gray: #444444;
+  --dark-accent-light: #666666;
+  --dark-border: #555555;
+  --dark-focus: #888888;
 }
 
+/* Profile buttons */
 .profile-button,
 button.profile-button,
 .quick-profile-button {
-  background-color: var(--dracula-current-line);
-  color: var(--dracula-foreground);
-  border: 1px solid var(--dracula-comment);
+  background-color: var(--dark-surface);
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
   border-radius: 6px;
   padding: 8px 16px;
   transition: all 0.3s ease;
@@ -29,9 +26,8 @@ button.profile-button,
 .profile-button:hover,
 button.profile-button:hover,
 .quick-profile-button:hover {
-  background-color: var(--dracula-selection);
-  border-color: var(--dracula-purple);
-  box-shadow: 0 2px 4px rgba(189, 147, 249, 0.3);
+  background-color: var(--dark-overlay);
+  border-color: var(--dark-accent-light);
 }
 
 .profile-button:active,
@@ -39,131 +35,133 @@ button.profile-button:active,
 .quick-profile-button:active,
 .profile-button.active,
 button.profile-button.active {
-  background-color: var(--dracula-purple);
-  color: var(--dracula-background);
-  border-color: var(--dracula-purple);
+  background-color: var(--dark-accent-gray);
+  color: var(--dark-text);
+  border-color: var(--dark-accent-gray);
 }
 
 .profile-button.performance {
-  background-color: var(--dracula-red);
-  border-color: var(--dracula-red);
-  color: var(--dracula-foreground);
+  background-color: #a04040;
+  border-color: #a04040;
+  color: var(--dark-text);
 }
 
 .profile-button.balanced {
-  background-color: var(--dracula-green);
-  border-color: var(--dracula-green);
-  color: var(--dracula-background);
+  background-color: #40a040;
+  border-color: #40a040;
+  color: var(--dark-text);
 }
 
 .profile-button.powersave {
-  background-color: var(--dracula-cyan);
-  border-color: var(--dracula-cyan);
-  color: var(--dracula-background);
+  background-color: #4080a0;
+  border-color: #4080a0;
+  color: var(--dark-text);
 }
 
 .profile-button.silent {
-  background-color: var(--dracula-comment);
-  border-color: var(--dracula-comment);
-  color: var(--dracula-foreground);
+  background-color: var(--dark-accent-gray);
+  border-color: var(--dark-accent-gray);
+  color: var(--dark-text);
 }
 
+/* General buttons */
 button {
-  background-color: var(--dracula-current-line);
-  color: var(--dracula-foreground);
-  border: 1px solid rgba(98, 114, 164, 0.3);
+  background-color: var(--dark-surface);
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
   min-height: 32px;
   min-width: 64px;
 }
 
 button:hover {
-  background-color: var(--dracula-selection);
-  border-color: var(--dracula-comment);
+  background-color: var(--dark-overlay);
+  border-color: var(--dark-accent-light);
 }
 
 button:active {
-  background-color: var(--dracula-comment);
+  background-color: var(--dark-accent-gray);
 }
 
-
 button.toggle {
-  background-color: var(--dracula-current-line);
-  color: var(--dracula-foreground);
+  background-color: var(--dark-surface);
+  color: var(--dark-text);
 }
 
 button.toggle:checked {
-  background-color: var(--dracula-purple);
-  color: var(--dracula-background);
-  border-color: var(--dracula-purple);
+  background-color: var(--dark-accent-light);
+  color: var(--dark-text);
+  border-color: var(--dark-accent-light);
 }
 
 button.suggested-action {
-  background-color: var(--dracula-green);
-  color: var(--dracula-background);
-  border-color: var(--dracula-green);
+  background-color: #40a040;
+  color: var(--dark-text);
+  border-color: #40a040;
 }
 
 button.destructive-action {
-  background-color: var(--dracula-red);
-  color: var(--dracula-foreground);
-  border-color: var(--dracula-red);
+  background-color: #a04040;
+  color: var(--dark-text);
+  border-color: #a04040;
 }
-
 
 button:disabled,
 .profile-button:disabled {
   opacity: 0.5;
-  background-color: var(--dracula-current-line);
-  color: var(--dracula-comment);
+  background-color: var(--dark-surface);
+  color: var(--dark-subtext);
 }
 
+/* Headerbar */
 headerbar button {
   background-color: transparent;
-  color: var(--dracula-foreground);
+  color: var(--dark-text);
   border: none;
 }
 
 headerbar button:hover {
-  background-color: rgba(68, 71, 90, 0.5);
+  background-color: var(--dark-overlay);
 }
 
 headerbar button:active {
-  background-color: var(--dracula-selection);
+  background-color: var(--dark-accent-gray);
 }
 
-
+/* Flat buttons */
 button.flat {
   background-color: transparent;
   border-color: transparent;
-  color: var(--dracula-foreground);
+  color: var(--dark-text);
 }
 
 button.flat:hover {
-  background-color: rgba(68, 71, 90, 0.3);
+  background-color: var(--dark-overlay);
 }
 
 button.flat:active {
-  background-color: rgba(68, 71, 90, 0.6);
+  background-color: var(--dark-accent-gray);
 }
 
+/* Circular buttons */
 button.circular {
   border-radius: 50%;
   padding: 8px;
-  background-color: var(--dracula-current-line);
-  color: var(--dracula-foreground);
+  background-color: var(--dark-surface);
+  color: var(--dark-text);
 }
 
+/* Text buttons */
 button.text-button {
   padding-left: 16px;
   padding-right: 16px;
-  color: var(--dracula-foreground);
-  background-color: var(--dracula-current-line);
+  color: var(--dark-text);
+  background-color: var(--dark-surface);
 }
 
-
+/* Image buttons */
 button.image-button {
   padding: 8px;
-  background-color: var(--dracula-current-line);
+  background-color: var(--dark-surface);
 }
 
 /* Linked button groups */
@@ -182,13 +180,72 @@ button.image-button {
 .profile-switcher button,
 .quick-access button,
 .main-controls button {
-  background-color: var(--dracula-current-line) !important;
-  color: var(--dracula-foreground) !important;
-  border: 1px solid var(--dracula-comment) !important;
+  background-color: var(--dark-surface) !important;
+  color: var(--dark-text) !important;
+  border: 1px solid var(--dark-border) !important;
 }
 
 window.background button:not(.suggested-action):not(.destructive-action) {
   background-image: none;
-  background-color: var(--dracula-current-line);
-  color: var(--dracula-foreground);
+  background-color: var(--dark-surface);
+  color: var(--dark-text);
+}
+
+/* ========================= */
+/* Traffic light window controls */
+/* ========================= */
+.traffic-btn {
+  min-width: 12px;
+  min-height: 12px;
+  max-width: 12px;
+  max-height: 12px;
+  padding: 0;
+  margin: 0 4px;
+  border-radius: 6px;
+  border: none;
+  font-size: 0;
+  -gtk-icon-size: 0;
+  transition: opacity 0.2s ease;
+}
+
+.traffic-btn:hover {
+  opacity: 0.8;
+}
+
+/* Close button */
+.traffic-close {
+  background-color: #ff5f57;
+}
+.traffic-close:hover {
+  background-color: #ff3b30;
+}
+
+/* Minimize button */
+.traffic-minimize {
+  background-color: #ffbd2e;
+}
+.traffic-minimize:hover {
+  background-color: #ff9500;
+}
+
+/* Maximize button */
+.traffic-maximize {
+  background-color: #28c840;
+}
+.traffic-maximize:hover {
+  background-color: #00b341;
+}
+
+/* Custom headerbar with traffic buttons */
+.custom-headerbar {
+  background: linear-gradient(180deg, var(--dark-background) 0%, var(--dark-surface) 100%);
+  border-bottom: 1px solid var(--dark-border);
+  padding: 4px 8px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+
+.custom-headerbar .traffic-btn {
+  margin-right: 6px;
 }
